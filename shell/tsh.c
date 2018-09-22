@@ -1,7 +1,7 @@
 /* 
  * tsh - A tiny shell program with job control
  * 
- * <Put your name and login ID here>
+ * Emily Morrow dancerec
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -165,6 +165,9 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
+    // about 70 lines of code
+    // main routine that parses and interprets the command line
+
     return;
 }
 
@@ -231,6 +234,8 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
+    // recognizes and interprets quit, fg, bg, and jobs
+    // 25 lines
     return 0;     /* not a builtin command */
 }
 
@@ -239,6 +244,8 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
+    // implements bg and fg built in commands
+    // 50 lines
     return;
 }
 
@@ -247,6 +254,8 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
+    // waits for goreground job to complete
+    // 20 lines
     return;
 }
 
@@ -263,6 +272,8 @@ void waitfg(pid_t pid)
  */
 void sigchld_handler(int sig) 
 {
+    // catches SIGCHILD signals 
+    // 80 lines
     return;
 }
 
@@ -273,6 +284,8 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
+    // catches SIGIN (ctrl-c) signals
+    // 15 lines
     return;
 }
 
@@ -283,6 +296,8 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig) 
 {
+    // catches SIGTSTP (ctrl-z) signals
+    // 15 lines
     return;
 }
 
