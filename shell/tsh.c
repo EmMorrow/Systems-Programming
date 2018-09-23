@@ -168,6 +168,18 @@ void eval(char *cmdline)
     // about 70 lines of code
     // main routine that parses and interprets the command line
 
+    // if the first word is a bult in command then 
+    // immediately execute the command in the current process
+
+    // if it's a pathname of an executable fork a child process
+    // and load and run the program in the child
+
+    // if the command ends with & then run it in the background
+    // (this means dont wait for the job to terminate before printing the prompt
+    // and awaiting the next command)
+    char *argv;
+    int isBgJob = parseline(*cmdline, **argv);
+    print("%i",isBgJob);
     return;
 }
 
@@ -236,6 +248,14 @@ int builtin_cmd(char **argv)
 {
     // recognizes and interprets quit, fg, bg, and jobs
     // 25 lines
+
+    // quit: terminates the shell
+    // jobs: list the running and stopped background jobs
+    // bg <job>: change a stopped background job to a running background job
+    // ^^ restarts <job> by sending it a SIGCONT signal and then runs it in the background <job> can be PID or JID
+    // fg <job>: change a stopped or running background job to a running fg job
+    // ^^ restarts <job by sending it a SIGCONT signal then runs it in foreground
+    // kill <job>: terminates a job
     return 0;     /* not a builtin command */
 }
 
