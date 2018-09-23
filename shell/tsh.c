@@ -165,6 +165,10 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
+    char *argv[MAXARGS]; /* Argument list execve() */
+    char buf[MAXLINE];   /* Holds modified command line */
+    int bg;              /* Should the job run in background */
+    pid_t pid;           /* Process id */
     // about 70 lines of code
     // main routine that parses and interprets the command line
 
@@ -177,9 +181,41 @@ void eval(char *cmdline)
     // if the command ends with & then run it in the background
     // (this means dont wait for the job to terminate before printing the prompt
     // and awaiting the next command)
-    char *argv;
-    int isBgJob = parseline(*cmdline, **argv);
-    print("%i",isBgJob);
+
+    // fix the code: the background jobs will beome zombies when they
+    // terminate and will never be reaped because the shell will not terminate
+    // and will create a memory leak that could run the kernal out of memory
+    strcpy(buf, cmdline);
+    bg = parseline(buf, argv);
+
+    if (argv[0] == NULL) 
+        return; /* Ignore empty lines */
+
+    // if not a built in command
+    if (!builtin_cmd(argv)) 
+    { 
+        if ((pid = fork()) == 0) /* Child runs user job */
+        {
+            if (execve(argv[0], argv, environ) < 0) 
+            {
+                printf("%s: Command not found.\n", argv[0]);
+                exit(0);
+            }
+        }
+
+        if (!bg) 
+        {
+            int status;
+            if (waitpid(pid, &status, 0) < 0) 
+            {
+                unix_error("waitf: wait pid error");
+            }
+        }
+        else
+        {
+            printf("%d %s", pid, cmdline);
+        }
+    }
     return;
 }
 
@@ -256,7 +292,30 @@ int builtin_cmd(char **argv)
     // fg <job>: change a stopped or running background job to a running fg job
     // ^^ restarts <job by sending it a SIGCONT signal then runs it in foreground
     // kill <job>: terminates a job
-    return 0;     /* not a builtin command */
+
+    if (strcmp(argv[0],"quit") == 0) 
+    {
+        exit(0);
+    }
+    else if (strcmp(argv[0],"jobs") == 0) 
+    {
+        // listjobs();
+        return 1;
+    }
+    else if (strcmp(argv[0],"bg") == 0 || strcmp(argv[0],"fg") == 0) 
+    {
+        do_bgfg(argv);
+        return 1;
+    }
+    else if (strcmp(argv[0],"kill") == 0) 
+    {
+        return 1;
+    }
+    else 
+    {
+        /* not a builtin command */
+        return 0;
+    }   
 }
 
 /* 
