@@ -169,6 +169,9 @@ void eval(char *cmdline)
     char buf[MAXLINE];   /* Holds modified command line */
     int bg;              /* Should the job run in background */
     pid_t pid;           /* Process id */
+    sigset_t mask;       /* signal set to be blocked */ 
+    struct job_t *job;                                                      //The signal set which has to be bloacked before adding the job to jobs
+
     // about 70 lines of code
     // main routine that parses and interprets the command line
 
@@ -191,29 +194,40 @@ void eval(char *cmdline)
     if (argv[0] == NULL) 
         return; /* Ignore empty lines */
 
+
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGCHLD);
+    sigaddset(&mask, SIGINT);                                                   //Add SIGINT to the signal set to be blocked
+    sigaddset(&mask, SIGTSTP);   
+
     // if not a built in command
     if (!builtin_cmd(argv)) 
     { 
+        sigprocmask(SIG_BLOCK, &mask, NULL);
         if ((pid = fork()) == 0) /* Child runs user job */
         {
+            sigprocmask(SIG_UNBLOCK, &mask, NULL);                              //Unblock the signal sets in child
+            setpgid(0,0);   
             if (execve(argv[0], argv, environ) < 0) 
             {
                 printf("%s: Command not found.\n", argv[0]);
                 exit(0);
             }
         }
-
+        
+        
         if (!bg) 
         {
-            int status;
-            if (waitpid(pid, &status, 0) < 0) 
-            {
-                unix_error("waitf: wait pid error");
-            }
+            addjob(jobs, pid, FG, cmdline);
+            sigprocmask(SIG_UNBLOCK, &mask, NULL);
+            waitfg(pid);
         }
         else
         {
-            printf("%d %s", pid, cmdline);
+            addjob(jobs, pid, BG, cmdline);
+            sigprocmask(SIG_UNBLOCK, &mask, NULL);
+            job = getjobpid(jobs, pid);                                          //Get the jobpid
+            printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
         }
     }
     return;
@@ -299,7 +313,7 @@ int builtin_cmd(char **argv)
     }
     else if (strcmp(argv[0],"jobs") == 0) 
     {
-        // listjobs();
+        listjobs(jobs);
         return 1;
     }
     else if (strcmp(argv[0],"bg") == 0 || strcmp(argv[0],"fg") == 0) 
@@ -333,8 +347,16 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
-    // waits for goreground job to complete
+    // waits for foreground job to complete
     // 20 lines
+
+    struct job_t *fgjob;
+    fgjob = getjobpid(jobs, pid);                          
+
+    while(fgjob->pid == pid && fgjob->state == FG)
+    {                              
+        sleep(1);                                                                   
+    }
     return;
 }
 
@@ -353,6 +375,28 @@ void sigchld_handler(int sig)
 {
     // catches SIGCHILD signals 
     // 80 lines
+    struct job_t *s4;
+    int status = -1;
+    pid_t pid;
+    while((pid=waitpid(-1,&status,WNOHANG|WUNTRACED))>0) //returns pid of child if OK,0 or -1 on error 
+    {
+        s4 = getjobpid(jobs,pid);
+        if(WIFEXITED(status))
+        {       
+            deletejob(jobs,pid);
+        }
+        if(WIFSIGNALED(status))
+        {
+            printf("[%d] (%d) terminated by signal 2\n",s4->jid,s4->pid);
+            deletejob(jobs,pid);   
+        }
+        if(WIFSTOPPED(status))
+        {
+            printf("[%d] (%d) stopped by signal 20\n",s4->jid,s4->pid);
+            s4->state = 3; 
+        }
+    }
+    
     return;
 }
 
