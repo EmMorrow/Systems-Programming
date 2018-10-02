@@ -170,7 +170,7 @@ void eval(char *cmdline)
     int bg;              /* Should the job run in background */
     pid_t pid;           /* Process id */
     sigset_t mask;       /* signal set to be blocked */ 
-    struct job_t *job;                                                      //The signal set which has to be bloacked before adding the job to jobs
+    struct job_t *job;                                                      
 
     // about 70 lines of code
     // main routine that parses and interprets the command line
@@ -197,16 +197,16 @@ void eval(char *cmdline)
 
     sigemptyset(&mask);
     sigaddset(&mask, SIGCHLD);
-    sigaddset(&mask, SIGINT);                                                   //Add SIGINT to the signal set to be blocked
+    sigaddset(&mask, SIGINT);                                                   
     sigaddset(&mask, SIGTSTP);   
 
     // if not a built in command
     if (!builtin_cmd(argv)) 
     { 
-        sigprocmask(SIG_BLOCK, &mask, NULL);
+        // sigprocmask(SIG_BLOCK, &mask, NULL);
         if ((pid = fork()) == 0) /* Child runs user job */
         {
-            sigprocmask(SIG_UNBLOCK, &mask, NULL);                              //Unblock the signal sets in child
+            // sigprocmask(SIG_UNBLOCK, &mask, NULL);                              
             setpgid(0,0);   
             if (execve(argv[0], argv, environ) < 0) 
             {
@@ -215,7 +215,7 @@ void eval(char *cmdline)
             }
         }
         
-        
+        sigprocmask(SIG_BLOCK, &mask, NULL);
         if (!bg) 
         {
             addjob(jobs, pid, FG, cmdline);
@@ -375,25 +375,25 @@ void sigchld_handler(int sig)
 {
     // catches SIGCHILD signals 
     // 80 lines
-    struct job_t *s4;
+    struct job_t *job;
     int status = -1;
     pid_t pid;
-    while((pid=waitpid(-1,&status,WNOHANG|WUNTRACED))>0) //returns pid of child if OK,0 or -1 on error 
+    while((pid=waitpid(-1,&status,WNOHANG|WUNTRACED))>0)
     {
-        s4 = getjobpid(jobs,pid);
+        job = getjobpid(jobs,pid);
         if(WIFEXITED(status))
         {       
             deletejob(jobs,pid);
         }
         if(WIFSIGNALED(status))
         {
-            printf("[%d] (%d) terminated by signal 2\n",s4->jid,s4->pid);
+            printf("[%d] (%d) terminated by signal 2\n",job->jid,job->pid);
             deletejob(jobs,pid);   
         }
         if(WIFSTOPPED(status))
         {
-            printf("[%d] (%d) stopped by signal 20\n",s4->jid,s4->pid);
-            s4->state = 3; 
+            printf("[%d] (%d) stopped by signal 20\n",job->jid,job->pid);
+            job->state = 3; 
         }
     }
     
