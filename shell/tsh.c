@@ -402,7 +402,7 @@ void sigchld_handler(int sig)
         }
         else if(WIFSTOPPED(status))
         {
-            sigtstp_handler(20);
+            sigtstp_handler(-1);
         }
         else if(WIFSIGNALED(status))
         {
@@ -452,8 +452,11 @@ void sigtstp_handler(int sig)
     
     if (pid > 0)
     {
-        printf("Job [%d] (%d) stopped by signal %d\n",job->jid,job->pid,sig);
-        job->state = ST;
+        if (sig != 20)
+        {
+            printf("Job [%d] (%d) stopped by signal %d\n",job->jid,job->pid,20;
+            job->state = ST;
+        }
         kill(-pid, SIGTSTP);
     }
     return;
