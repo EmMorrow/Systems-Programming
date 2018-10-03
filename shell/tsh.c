@@ -349,7 +349,7 @@ void do_bgfg(char **argv)
     {
         if (fgpid(jobs) == 0) 
         {
-            printf("%s: No Such Job\n", argv[1]);
+            printf("%s: No such job\n", argv[1]);
         }
     }
     else if (strcmp(argv[0],"fg") == 0)
