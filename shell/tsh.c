@@ -338,7 +338,8 @@ int builtin_cmd(char **argv)
 void do_bgfg(char **argv) 
 {
     sigset_t mask;       /* signal set to be blocked */ 
-    job_t *job;
+    struct job_t *job;
+    pid_t pid;
 
     sigemptyset(&mask);
     sigaddset(&mask, SIGCHLD);
@@ -354,15 +355,17 @@ void do_bgfg(char **argv)
         }
 
         else 
-        {
-            job = getjobpid(jobs,argv[1]);
+        {   
+            pid = atoi(argv[1]);
+            job = getjobpid(jobs,pid);
             deletejob(jobs, job->pid);
             addjob(jobs, job->pid, BG, job->cmdline);
         }
     }
     else if (strcmp(argv[0],"fg") == 0)
-    {
-        job = getjobpid(jobs,argv[1]);
+    {   
+        pid = atoi(argv[1]);
+        job = getjobpid(jobs,pid);
         if (job == NULL) 
         {
             printf("%s: No such job\n", argv[1]);
