@@ -341,37 +341,55 @@ void do_bgfg(char **argv)
     struct job_t *job;
     pid_t pid;
 
+    if (argv[1] == NULL) 
+    {
+        printf("%s command requires PID or %%jobid argument\n", argv[0]);
+        return;
+    }
+
+    else if(isalpha(argv[1][0]))
+    {
+        printf("%s: argument must be a PID or %%jobid\n", argv[0]);
+        return;
+    }
+    // check for jid if it starts w %
     sigemptyset(&mask);
     sigaddset(&mask, SIGCHLD);
     sigaddset(&mask, SIGINT);                                                   
     sigaddset(&mask, SIGTSTP);
 
-    sigprocmask(SIG_BLOCK, &mask, NULL);   
-    if (strcmp(argv[0],"bg") == 0) 
-    {
-        if (fgpid(jobs) == 0) 
-        {
-            printf("%s: No such job\n", argv[1]);
-        }
+    sigprocmask(SIG_BLOCK, &mask, NULL);  
 
-        else 
-        {   
-            pid = atoi(argv[1]);
-            job = getjobpid(jobs,pid);
-            deletejob(jobs, job->pid);
-            addjob(jobs, job->pid, BG, job->cmdline);
-        }
-    }
-    else if (strcmp(argv[0],"fg") == 0)
-    {   
-        pid = atoi(argv[1]);
-        job = getjobpid(jobs,pid);
+    pid = atoi(argv[1]);
+    if (argv[1][0] == '%') // it's a jid
+    {
+        job = getjobjid(jobs,pid);
         if (job == NULL) 
         {
             printf("%s: No such job\n", argv[1]);
-        } 
-
-        else 
+        }
+    }
+    else                   // it's a pid
+    {   
+        job = getjobpid(jobs,pid);
+        if (job == NULL)
+        {
+            printf( "(%s): no such process\n", argv[1]); 
+        }
+    }
+    
+    if (strcmp(argv[0],"bg") == 0) 
+    {
+        if (job != NULL)
+        {
+            deletejob(jobs, job->pid);
+            addjob(jobs, job->pid, BG, job->cmdline);
+        }
+        
+    }
+    else if (strcmp(argv[0],"fg") == 0)
+    {   
+        if (job != NULL) 
         {
             deletejob(jobs, job->pid);
             addjob(jobs, job->pid, FG, job->cmdline);
