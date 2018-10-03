@@ -396,7 +396,6 @@ void sigchld_handler(int sig)
     
     while((pid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0)
     {
-        job = getjobpid(jobs,pid);
         if(WIFEXITED(status))
         {
             deletejob(jobs,pid);
