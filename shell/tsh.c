@@ -304,7 +304,6 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv)
 {
-    sigset_t mask;       /* signal set to be blocked */
     struct job_t *job;
     pid_t pid;
     
@@ -392,7 +391,6 @@ void waitfg(pid_t pid)
  */
 void sigchld_handler(int sig)
 {
-    struct job_t *job;
     int status;
     pid_t pid;
     
@@ -413,7 +411,6 @@ void sigchld_handler(int sig)
         }
         
     }
-    
     return;
 }
 
