@@ -210,7 +210,7 @@ void eval(char *cmdline)
             setpgid(0,0);   
             if (execve(argv[0], argv, environ) < 0) 
             {
-                printf("%s: Command not found.\n", argv[0]);
+                printf("%s: Command not found\n", argv[0]);
                 exit(0);
             }
         }
@@ -226,7 +226,7 @@ void eval(char *cmdline)
         {
             addjob(jobs, pid, BG, cmdline);
             sigprocmask(SIG_UNBLOCK, &mask, NULL);
-            job = getjobpid(jobs, pid);                                          //Get the jobpid
+            job = getjobpid(jobs, pid);                                        
             printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
         }
     }
@@ -337,8 +337,25 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
-    // implements bg and fg built in commands
-    // 50 lines
+    sigset_t mask;       /* signal set to be blocked */ 
+
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGCHLD);
+    sigaddset(&mask, SIGINT);                                                   
+    sigaddset(&mask, SIGTSTP);
+
+    sigprocmask(SIG_BLOCK, &mask, NULL);   
+    if (strcmp(argv[0],"bg") == 0) 
+    {
+        if (fgpid(jobs) == 0) 
+        {
+            printf("%s: No Such Job\n", argv[1]);
+        }
+    }
+    else if (strcmp(argv[0],"fg") == 0)
+    {
+
+    }
     return;
 }
 
