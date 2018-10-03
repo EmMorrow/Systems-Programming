@@ -402,7 +402,7 @@ void sigchld_handler(int sig)
         }
         else if(WIFSTOPPED(status))
         {
-            sigtstp_handler(18);
+            sigtstp_handler(20);
         }
         else if(WIFSIGNALED(status))
         {
