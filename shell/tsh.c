@@ -196,17 +196,15 @@ void eval(char *cmdline)
 
 
     sigemptyset(&mask);
-    sigaddset(&mask, SIGCHLD);
-    sigaddset(&mask, SIGINT);                                                   
-    sigaddset(&mask, SIGTSTP);   
+    sigaddset(&mask, SIGCHLD); 
 
     // if not a built in command
     if (!builtin_cmd(argv)) 
     { 
-        // sigprocmask(SIG_BLOCK, &mask, NULL);
+        sigprocmask(SIG_BLOCK, &mask, NULL);
         if ((pid = fork()) == 0) /* Child runs user job */
         {
-            // sigprocmask(SIG_UNBLOCK, &mask, NULL);                              
+            sigprocmask(SIG_UNBLOCK, &mask, NULL);                              
             setpgid(0,0);   
             if (execve(argv[0], argv, environ) < 0) 
             {
@@ -215,7 +213,7 @@ void eval(char *cmdline)
             }
         }
         
-        sigprocmask(SIG_BLOCK, &mask, NULL);
+        
         if (!bg) 
         {
             addjob(jobs, pid, FG, cmdline);
@@ -225,9 +223,9 @@ void eval(char *cmdline)
         else
         {
             addjob(jobs, pid, BG, cmdline);
-            sigprocmask(SIG_UNBLOCK, &mask, NULL);
             job = getjobpid(jobs, pid);                                        
             printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
+            sigprocmask(SIG_UNBLOCK, &mask, NULL);
         }
     }
     return;
@@ -367,6 +365,7 @@ void do_bgfg(char **argv)
         if (job == NULL) 
         {
             printf("%s: No such job\n", argv[1]);
+            return;
         }
     }
     else                   // it's a pid
@@ -374,26 +373,20 @@ void do_bgfg(char **argv)
         job = getjobpid(jobs,pid);
         if (job == NULL)
         {
-            printf( "(%s): no such process\n", argv[1]); 
+            printf( "(%s): No such process\n", argv[1]); 
+            return;
         }
     }
-    
+
+    kill(-job->pid, SIGCONT);
     if (strcmp(argv[0],"bg") == 0) 
     {
-        if (job != NULL)
-        {
-            deletejob(jobs, job->pid);
-            addjob(jobs, job->pid, BG, job->cmdline);
-        }
-        
+        job->state = BG;
     }
     else if (strcmp(argv[0],"fg") == 0)
-    {   
-        if (job != NULL) 
-        {
-            deletejob(jobs, job->pid);
-            addjob(jobs, job->pid, FG, job->cmdline);
-        }
+    {  
+        job->state = FG;
+        waitfg(job->pid);
     }
     sigprocmask(SIG_UNBLOCK, &mask, NULL);
     return;
@@ -404,11 +397,13 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
-    // waits for foreground job to complete
-    // 20 lines
-
     struct job_t *fgjob;
-    fgjob = getjobpid(jobs, pid);                          
+    fgjob = getjobpid(jobs, pid); 
+
+    if (fgjob == NULL) 
+    {
+        return;
+    }                         
 
     while(fgjob->pid == pid && fgjob->state == FG)
     {                              
@@ -430,28 +425,28 @@ void waitfg(pid_t pid)
  */
 void sigchld_handler(int sig) 
 {
-    // catches SIGCHILD signals 
-    // 80 lines
     struct job_t *job;
-    int status = -1;
+    int status;
     pid_t pid;
-    while((pid=waitpid(-1,&status,WNOHANG|WUNTRACED))>0)
+
+    while((pid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0)
     {
         job = getjobpid(jobs,pid);
         if(WIFEXITED(status))
         {       
             deletejob(jobs,pid);
         }
-        if(WIFSIGNALED(status))
+        else if(WIFSTOPPED(status))
         {
-            printf("[%d] (%d) terminated by signal 2\n",job->jid,job->pid);
-            deletejob(jobs,pid);   
-        }
-        if(WIFSTOPPED(status))
-        {
+            job->state = ST; 
             printf("[%d] (%d) stopped by signal 20\n",job->jid,job->pid);
-            job->state = 3; 
         }
+        else if(WIFSIGNALED(status))
+        {
+            deletejob(jobs,pid);   
+            printf("[%d] (%d) terminated by signal 2\n",job->jid,job->pid);
+        }
+        
     }
     
     return;
@@ -464,8 +459,13 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
-    // catches SIGIN (ctrl-c) signals
-    // 15 lines
+    pid_t pid;
+    pid = fgpid(jobs);
+
+    if (pid > 0) 
+    {
+        kill(-pid, sig);
+    }
     return;
 }
 
@@ -476,8 +476,13 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig) 
 {
-    // catches SIGTSTP (ctrl-z) signals
-    // 15 lines
+    pid_t pid;
+    pid = fgpid(jobs);
+
+    if (pid > 0) 
+    {   
+        kill(-pid, sig);
+    }
     return;
 }
 
