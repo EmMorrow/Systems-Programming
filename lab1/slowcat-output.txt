@@ -1,0 +1,86 @@
+1. Execute slowcat such that test.txt is opened by the slowcat program.
+./slowcat test.txt
+2381
+AAA
+BBB
+CCC
+DDD
+EEE
+
+2. Execute slowcat such that test.txt is opened by the shell, which sends it to slowcat's stdin, and slowcat reads it (i.e., input redirection).
+cat test.txt | ./slowcat
+2383
+AAA
+BBB
+CCC
+DDD
+EEE
+
+3. Execute slowcat as in #1 above, but specify a sleep time of 5.
+SLOWCAT_SLEEP_TIME="5" ./slowcat test.txt 
+2384
+AAA
+BBB
+CCC
+DDD
+EEE
+
+4. Execute a pipeline of 3 slowcats, the first being executed as #1 above
+./slowcat test.txt | ./slowcat | ./slowcat
+2387
+2386
+2385
+AAA
+BBB
+CCC
+DDD
+EEE
+ 
+5.
+	a) Execute slowcat as in #1 above; suspend the process after two lines are read.
+	./slowcat test.txt 
+	control-Z
+	2388
+	AAA
+	BBB
+	^Z
+	[1]+  Stopped             ./slowcat test.txt
+
+	b) Execute slowcat again as in #1 above; suspend the newest process after two lines are read.
+	./slowcat test.txt
+	control-Z
+	2395
+	AAA
+	BBB
+	^Z
+	[2]+  Stopped            ./slowcat test.txt
+
+	c) List the current jobs.
+	jobs
+	[1]-  Stopped            ./slowcat test.txt
+	[2]+  Stopped            ./slowcat test.txt
+
+	d) Background the first suspended instance of slowcat.
+	bg %1
+	[1]- ./slowcat test.txt &
+	CCC
+	Emilys-MacBook-Pro:CS324 emilychandler$ DDD
+	EEE
+
+	e) Foreground the second suspended instance of slowcat.
+	fg %2
+	./slowcat test.txt
+	CCC
+	DDD
+	EEE
+
+6. Execute slowcat as in #1 above, but in the background.
+
+./slowcat test.txt &
+[1] 2396
+Emilys-MacBook-Pro:CS324 emilychandler$ 2396
+AAA
+BBB
+CCC
+DDD
+EEE

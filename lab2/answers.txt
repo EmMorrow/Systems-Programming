@@ -1,0 +1,191 @@
+3a. Open exec.c and look at what it does.  Give a description of its behavior.
+    It prints the program name and its pid and then has it sleep for 30 seconds.
+If there's no program name on the command line then it says "no program" and exits.
+Otherwise it runs execve(argv[1], &argv[1], newenviron) which executes the program argv[1].
+The program getting executed gets sent the array of strings &argv[1] and
+newenviron is passed as environmnet variable to the new program.
+ 
+3b. Under what conditions will the final print statement be executed?
+    The final print statement will be executed when execve fails.
+ 
+3c. Execute the exec program, instructing it to run the program "/bin/cat" 
+with no arguments (i.e., no arguments to cat).  Show the command-line you 
+used to execute the program.
+    ./exec /bin/cat
+
+3d. Run the ps command in another window, such that 1) only information for
+the process whose PID output by 3c is shown; and 2) only the following fields 
+are shown in the output:
+
+user: the username of the user running the process
+pid: the process ID of the process
+ppid: the process ID of the parent process
+state: the state of the process, e.g., Running, Sleep, Zombie
+ucmd: the command executed
+
+Use the man page for ps to learn how to do this.  Run your ps command 1) during the initial sleep(); and then again 2) after the exec call (i.e., after the initial 
+30-second sleep is over).  Show the commands you used and their output.
+NOTE: I'm doing this on a mac so some of the commands are different than 
+ps -p 15959 -o user,pid,ppid,state,command
+USER            PID  PPID STAT COMMAND
+emilychandler 15959 15611 S+   ./exec /bin/cat
+
+ps -p 15959 -o user,pid,ppid,state,command
+USER            PID  PPID STAT COMMAND
+emilychandler 15959 15611 S+   /bin/cat
+ 
+
+3e. What similarities and differences are there between the output of the two executions of ps, and what are the reasons for those similarities and differences?
+Everything is the same except the command is different. The first command is exec and the second command is cat. This is because when we ran ps during sleep() 
+it's running in the exec program but when we run it after the execve call it's just running /bin/cat
+ 
+
+3f. Run the exec program again, this time specifying that it execute a non-existent program.  Show the output and explain it.
+./exec  t.txt
+Program "./exec" has pid 16147. Sleeping.
+Running exec of "t.txt"
+End of program "./exec".
+The program sleeps but when it gets to the execve the execva fails because the file doesn't exist so it hits the last print statement of the program.
+ 
+
+4. fork
+
+4a. Open fork.c and look at what it does.  Give a description of its behavior.
+In fork.c fork() gets called and the program terminates if the fork is unsuccessful. 
+Then the child and the parent process prints Section A and sleeps. The Child prints "Section B" then sleeps and exits.
+The Parent prints "Section C" then sleeps and exits.
+ 
+
+4b. Which section(s) (annotated "A", "B", "C", and "D") are run by the parent process and which by the child process?
+Parent: A,C
+Child: A,B
+ 
+
+4c. Execute the fork program.  Now run the ps command in another window, such that 1) only information for the processes whose PIDs (should be two) output by 4b are shown; 2) only the following fields are shown in the output:
+
+user: the username of the user running the process
+pid: the process ID of the process
+ppid: the process ID of the parent process
+state: the state of the process, e.g., Running, Sleep, Zombie
+ucmd: the command executed
+
+and 3) process ancestry is illustrated (with the "--forest" option):
+Use the man page for ps to learn how to do this.  Run your ps command 1) during the initial sleep(); and 2) after "Section B done sleeping" is printed (but while the program is still running).  Show the commands you used and their output.
+NOTE: I switched to a linux machine
+ps -p 28896,28897  -o user,pid,ppid,state,ucmd --forest
+USER       PID  PPID S CMD
+dancerec 28896 28512 S fork
+dancerec 28897 28896 S  \_ fork
+
+ps -p 28896,28897  -o user,pid,ppid,state,ucmd --forest
+USER       PID  PPID S CMD
+dancerec 28896 28512 S fork
+dancerec 28897 28896 Z  \_ fork <defunct>
+ 
+
+4d. What similarities and differences are there between the output of the two executions of ps, and what are the reasons for those similarities and differences?
+ Everyhing is the same between the first and the second except the second is in state Z and after fork it says <defunct> which just means its a zombie process.
+ Essentially in the second run the child process has stopped running and is a zombie process.
+
+4e. With what single line of code could you change the output of the second ps command, such that the process with state "Z" is eliminated?  Where would you put it?  
+Add that line to fork.c, and re-make.
+If you put wait(NULL) into section C of the code the child zombie process will get eliminated before the parent process ends.
+ 
+
+ 
+
+[NOTE: Part 4f initially had a problem with the expected output because of the line of code added in 4e.  For that reason, I will give credit for output of reasonable attempts to 
+complete problems 4f and 4g, even having used the initial version of my question.  But even if you get credit on this assignment for these questions, please understand what the 
+proper output is/should be, so you can answer properly on any test questions on this topic.]
+
+ 
+
+4f. Modify fork.c.  Modify the code, such that: 1) Section B has two 30-second sleep() calls in place of the original; 2) Section C has only a single 30-second sleep() call in place of the 
+original; and 3) the line of code you added in 4e is temporarily commented out.  Now repeat the exercises in 4c (replace "Section B done sleeping" with "Section C done sleeping" in the 
+instructions).
+ps -p 31459,31460  -o user,pid,ppid,state,ucmd --forest
+USER       PID  PPID S CMD
+dancerec 31459 28512 S fork
+dancerec 31460 31459 S  \_ fork
+
+ps -p 31459,31460  -o user,pid,ppid,state,ucmd --forest
+USER       PID  PPID S CMD
+dancerec 31460     1 S fork
+ 
+
+4g. Repeat the exercises associated with 4d.
+In the second output the parent process has been killed and the PPID is different. 
+ 
+
+4h. Modify fork.c: 1) comment out all calls to sleep(); 2) prior to the call to fork(), open the file "fork-output.txt" for writing (see fopen); 3) write "BEFORE FORK\n" 
+to the file before the call to fork(), "SECTION A\n" in section A, "SECTION B\n" in section B, and similarly for sections C and D; and 4) un-comment the line of code you 
+added in 4f.  Re-make, and execute the newly compiled fork.  Use cat to show the contents of the file you created.
+cat fork-output.txt 
+BEFORE FORK
+SECTION A
+SECTION C
+BEFORE FORK
+SECTION A
+SECTION B
+ 
+
+4i. Describe what you observe about the parent and child processes writing to the file.
+The parent wrote everything to the file before the child wrote anything to the file
+ 
+
+4j. Modify fork.c.  Prior to the call to fork(), open a pipe (see man pipe).  In section B: close the file descriptor corresponding to the reader end of the pipe; create a stream using the file 
+descriptor corresponding to the writer end of the pipe (see man fdopen); and write "hello from Section B\n" to the newly opened stream (see man fputs).  In section C: close the file descriptor 
+corresponding to the writer end of the pipe; create a stream using the file descriptor corresponding to the reader end of the pipe (see man fdopen); read a line from the newly opened stream 
+(see man fgets); and print the line read to stdout.  Show the output of your program.
+./fork
+Starting program; process has pid 18579
+Section A;  pid 18579
+Section A;  pid 18580
+Section B
+Section B done sleeping
+hello from section b
+Section C
+Section C done sleeping
+
+
+5.  fork/exec()
+
+ 
+
+5a. Modify fork.c. Take the body of exec.c and integrate it into fork.c, such that the child process created with the fork() call runs the execve() call with same arguments, 
+as the *last* thing it does before exiting.  Note that you shouldn't have to change the content of the code you're integrating, only where they are placed in the new file.  
+Also, remove all the sleep() calls in the program.  Re-make, and execute the following to show that it works: "echo foobar | ./fork /bin/cat".  Show the output from running that.
+echo foobar | ./fork /bin/cat
+Starting program; process has pid 18612
+Section A;  pid 18612
+Section A;  pid 18613
+Section B
+Section B done sleeping
+Program "./fork" has pid 18613. Sleeping.
+hello from section b
+Section C
+Section C done sleeping
+Emilys-MBP:lab2 emilychandler$ Running exec of "/bin/cat"
+foobar
+ 
+
+5b. Modify fork.c.  Immediately before the call to "exec()", duplicate the file descriptor associated with the stream you opened in 4h, such that the standard output of the child 
+process goes to that stream instead (see man fileno and man dup2).  Re-make, and execute the following to show that it works: "echo foobar | ./fork /bin/cat".  Show the output from 
+running that.  Also, cat the contents of fork-output.txt.
+echo foobar | ./fork /bin/cat
+Starting program; process has pid 27666
+Section A;  pid 27666
+Section A;  pid 27667
+Section B
+Section B done sleeping
+hello from section b
+Section C
+Section C done sleeping
+Program "./fork" has pid 27667. Sleeping.
+Emilys-MBP:lab2 emilychandler$ Running exec of "/bin/cat"
+foobar
+
+Emilys-MBP:lab2 emilychandler$ cat fork-output.txt
+BEFORE FORK
+SECTION A
+SECTION C
