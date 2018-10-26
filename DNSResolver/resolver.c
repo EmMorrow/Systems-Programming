@@ -222,7 +222,7 @@ int send_recv_message(unsigned char *request, int requestlen, unsigned char *res
 	 */
 	int skt;
 	struct sockaddr_in addr;
-	skt = socket(AF_INET, SOCK_STREAM,0);
+	skt = socket(AF_INET, SOCK_DGRAM,0);
 	memset(&addr, 0, sizeof(struct sockaddr_in));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons((u_short) port);
