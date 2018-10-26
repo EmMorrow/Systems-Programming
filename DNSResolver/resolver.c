@@ -231,8 +231,8 @@ int send_recv_message(unsigned char *request, int requestlen, unsigned char *res
 	connect(skt, (struct sockaddr *) &addr, sizeof(addr));
 
 	// communicate using send and recv or read and write
-	int send(skt, request, requestlen, 0);
-	int recv(skt, response, 1024, 0);
+	int s = send(skt, request, requestlen, 0);
+	int r = recv(skt, response, 1024, 0);
 	close(skt);
 }
 
