@@ -256,6 +256,8 @@ dns_answer_entry *resolve(char *qname, char *server) {
 	// int recv_len = send_recv_message(wire_msg, msg_len, recv_msg, server, 53); // 53 is the default UDP port
 	// dns_answer_entry* entry_list = get_answer_address(qname, qtype, recv_msg, ans_msg);
 	int recv_len = send_recv_message(msg, msg_len, recv_msg, server, 53); // 53 is the default UDP port
+
+	print_bytes(recv_msg, recv_len);
 }
 
 int main(int argc, char *argv[]) {
