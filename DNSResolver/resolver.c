@@ -240,9 +240,9 @@ int send_recv_message(unsigned char *request, int requestlen, unsigned char *res
 dns_answer_entry *resolve(char *qname, char *server) {
 	// q name is www.example.com
 	// server is 8.8.8.8
-	unsigned char* wire_msg = malloc(1024);
-	unsigned char* recv_msg = malloc(1024);
-	unsigned char* ans_msg = malloc(1024);
+	unsigned char* wire_msg = malloc(sizeof(char) * ( 1024 ));
+	unsigned char* recv_msg = malloc(sizeof(char) * ( 1024 ));
+	unsigned char* ans_msg = malloc(sizeof(char) * ( 1024 ));
 	dns_rr_type qtype = 0x01;
 
 	unsigned char msg[] = {0x27, 0xd6, 0x01, 0x00,
