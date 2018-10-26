@@ -231,16 +231,16 @@ int send_recv_message(unsigned char *request, int requestlen, unsigned char *res
 
 	// communicate using send and recv or read and write
 	int send(skt, request, requestlen, 0);
-	int recv(skt, response, BUFFER_MAX, 0);
+	int recv(skt, response, 1024, 0);
 	close(skt);
 }
 
 dns_answer_entry *resolve(char *qname, char *server) {
 	// q name is www.example.com
 	// server is 8.8.8.8
-	unsigned char* wire_msg = malloc(BUFFER_MAX);
-	unsigned char* recv_msg = malloc(BUFFER_MAX);
-	unsigned char* ans_msg = malloc(BUFFER_MAX);
+	unsigned char* wire_msg = malloc(1024);
+	unsigned char* recv_msg = malloc(1024);
+	unsigned char* ans_msg = malloc(1024);
 	dns_rr_type qtype = 0x01;
 
 	unsigned char msg[] = {0x27, 0xd6, 0x01, 0x00,
@@ -248,6 +248,8 @@ dns_answer_entry *resolve(char *qname, char *server) {
 	0x03, 0x77, 0x77, 0x77, 0x07, 0x65, 0x78, 0x61,
 	0x6d, 0x70, 0x6c, 0x65, 0x03, 0x63, 0x6f, 0x6d, 0x00,
 	0x00, 0x01, 0x00, 0x01};
+
+	int msg_len = 33;
 
 	// int msg_len = create_dns_query(qname, qtype, wire_msg); // need to figure out how to find qtype (1)
 	// int recv_len = send_recv_message(wire_msg, msg_len, recv_msg, server, 53); // 53 is the default UDP port
