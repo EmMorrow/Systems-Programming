@@ -78,6 +78,8 @@ void append(char* s, char c) {
         s[len+1] = '\0';
 }
 
+
+
 void canonicalize_name(char *name) {
 	/*
 	 * Canonicalize name in place.  Change all upper-case characters to
@@ -87,7 +89,7 @@ void canonicalize_name(char *name) {
 	 *
 	 * INPUT:  name: the domain name that should be canonicalized in place
 	 */
-	
+
 	int namelen, i;
 
 	// leave the root zone alone
@@ -110,7 +112,7 @@ void canonicalize_name(char *name) {
 }
 
 int name_ascii_to_wire(char *name, unsigned char *wire) {
-	/* 
+	/*
 	 * Convert a DNS name from string representation (dot-separated labels)
 	 * to DNS wire format, using the provided byte array (wire).  Return
 	 * the number of bytes used by the name in wire format.
@@ -121,22 +123,18 @@ int name_ascii_to_wire(char *name, unsigned char *wire) {
 	 * OUTPUT: the length of the wire-formatted name.
 	 */
 
-	for (int i = 0; i < sizeof(name); i = i + 1) {
-		if (name[i] == '.') {
-			// do something 
-		}
-		else {
-			int x = name[i] - '0';
-			char str[5];
-			itoa(x,str,10);
-			append(wire,str[0]);
-			append(wire,str[1]);
-		}
-	}
+	 for (int i = 0; i < strlen(name); i++) {
+		 if (name[i] == '.') {
+
+		 }
+		 else {
+		 	append(wire, name[i]);
+	 	}
+	 }
 }
 
 char *name_ascii_from_wire(unsigned char *wire, int *indexp) {
-	/* 
+	/*
 	 * Extract the wire-formatted DNS name at the offset specified by
 	 * *indexp in the array of bytes provided (wire) and return its string
 	 * representation (dot-separated labels) in a char array allocated for
@@ -152,9 +150,9 @@ char *name_ascii_from_wire(unsigned char *wire, int *indexp) {
 }
 
 dns_rr rr_from_wire(unsigned char *wire, int *indexp, int query_only) {
-	/* 
+	/*
 	 * Extract the wire-formatted resource record at the offset specified by
-	 * *indexp in the array of bytes provided (wire) and return a 
+	 * *indexp in the array of bytes provided (wire) and return a
 	 * dns_rr (struct) populated with its contents. Update the value
 	 * pointed to by indexp to the next value beyond the resource record.
 	 *
@@ -174,7 +172,7 @@ dns_rr rr_from_wire(unsigned char *wire, int *indexp, int query_only) {
 
 
 int rr_to_wire(dns_rr rr, unsigned char *wire, int query_only) {
-	/* 
+	/*
 	 * Convert a DNS resource record struct to DNS wire format, using the
 	 * provided byte array (wire).  Return the number of bytes used by the
 	 * name in wire format.
@@ -195,7 +193,7 @@ int rr_to_wire(dns_rr rr, unsigned char *wire, int query_only) {
 }
 
 unsigned short create_dns_query(char *qname, dns_rr_type qtype, unsigned char *wire) {
-	/* 
+	/*
 	 * Create a wire-formatted DNS (query) message using the provided byte
 	 * array (wire).  Create the header and question sections, including
 	 * the qname and qtype.
@@ -206,47 +204,26 @@ unsigned short create_dns_query(char *qname, dns_rr_type qtype, unsigned char *w
 	 *               message should be constructed
 	 * OUTPUT: the length of the DNS wire message
 	 */
-	append(wire, '2');
-	append(wire, '7');
-	append(wire, 'd');
-	append(wire, '6');
-	append(wire, '0');
-	append(wire, '1');
-	append(wire, '0');
-	append(wire, '0');
-	append(wire, '0');
-	append(wire, '0');
-	append(wire, '0');
-	append(wire, '1');
-	append(wire, '0');
-	append(wire, '0');
-	append(wire, '0');
-	append(wire, '0');
-	append(wire, '0');
-	append(wire, '0');
-	append(wire, '0');
-	append(wire, '0');
-	append(wire, '0');
-	append(wire, '0');
-	append(wire, '0');
-	append(wire, '0');
+	 //memcopy
 
-	name_ascii_to_wire(qname, wire);
-	
-	append(wire, '0');
-	append(wire, '0');
-	append(wire, '0');
-	append(wire, '1');
-	append(wire, '0');
-	append(wire, '0');
-	append(wire, '0');
-	append(wire, '1');
+	unsigned char header[] = {0x27, 0xd6, 0x01, 0x00,
+ 	0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	size_t s = sizeof(header);
+	char* dst = &wire[0];
+	printf("size s: %ld", s);
+	memcpy(dst, header, s);
 
+	unsigned char footer[] = {0x00, 0x01, 0x00, 0x01};
+
+
+	// name_ascii_to_wire(qname, wire);
+	printf("here: %ld",sizeof(wire));
+	return sizeof(wire);
 	// rr_to_wire()
 }
 
 dns_answer_entry *get_answer_address(char *qname, dns_rr_type qtype, unsigned char *wire) {
-	/* 
+	/*
 	 * Extract the IPv4 address from the answer section, following any
 	 * aliases that might be found, and return the string representation of
 	 * the IP address.  If no address is found, then return NULL.
@@ -262,17 +239,11 @@ dns_answer_entry *get_answer_address(char *qname, dns_rr_type qtype, unsigned ch
 }
 
 int send_recv_message(unsigned char *request, int requestlen, unsigned char *response, char *server, unsigned short port) {
-	/* 
+	/*
 	 * Send a message (request) over UDP to a server (server) and port
 	 * (port) and wait for a response, which is placed in another byte
 	 * array (response).  Create a socket, "connect()" it to the
 	 * appropriate destination, and then use send() and recv();
-	 *
-	 * INPUT:  request: a pointer to an array of bytes that should be sent
-	 * INPUT:  requestlen: the length of request, in bytes.
-	 * INPUT:  response: a pointer to an array of bytes in which the
-	 *             response should be received
-	 * OUTPUT: the size (bytes) of the response received
 	 */
 	int skt;
 	struct sockaddr_in addr;
@@ -295,11 +266,11 @@ int send_recv_message(unsigned char *request, int requestlen, unsigned char *res
 dns_answer_entry *resolve(char *qname, char *server) {
 	// q name is www.example.com
 	// server is 8.8.8.8
-	unsigned char* wire_msg = malloc(sizeof(char) * ( 1024 ));
-	char* recv_msg = malloc(sizeof(char) * ( 1024 ));
+	unsigned char* wire_msg = malloc(1024);
+	char* recv_msg = malloc(1024);
 	// unsigned char recv_msg[1024];
 
-	unsigned char* ans_msg = malloc(sizeof(char) * ( 1024 ));
+	unsigned char* ans_msg = malloc(1024);
 	dns_rr_type qtype = 0x01;
 
 	unsigned char msg[] = {0x27, 0xd6, 0x01, 0x00,
@@ -308,14 +279,14 @@ dns_answer_entry *resolve(char *qname, char *server) {
 	0x6d, 0x70, 0x6c, 0x65, 0x03, 0x63, 0x6f, 0x6d, 0x00,
 	0x00, 0x01, 0x00, 0x01};
 
-	int msg_len = 33;
+	// int msg_len = 33;
 	printf("1");
 	int msg_len = create_dns_query(qname, qtype, wire_msg); // need to figure out how to find qtype (1)
-	int recv_len = send_recv_message(wire_msg, msg_len, recv_msg, server, 53); // 53 is the default UDP port
+	// int recv_len = send_recv_message(wire_msg, msg_len, recv_msg, server, 53); // 53 is the default UDP port
 	// dns_answer_entry* entry_list = get_answer_address(qname, qtype, recv_msg, ans_msg);
-	
+
 	// int recv_len = send_recv_message(msg, msg_len, recv_msg, server, 53); // 53 is the default UDP port
-	print_bytes(recv_msg, recv_len);
+	print_bytes(wire_msg, msg_len);
 	return NULL;
 }
 
