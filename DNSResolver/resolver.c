@@ -72,6 +72,12 @@ void print_bytes(unsigned char *bytes, int byteslen) {
 	printf("\n");
 }
 
+void append(char* s, char c) {
+        int len = strlen(s);
+        s[len] = c;
+        s[len+1] = '\0';
+}
+
 void canonicalize_name(char *name) {
 	/*
 	 * Canonicalize name in place.  Change all upper-case characters to
@@ -114,6 +120,19 @@ int name_ascii_to_wire(char *name, unsigned char *wire) {
 	 *              wire-formatted name should be constructed
 	 * OUTPUT: the length of the wire-formatted name.
 	 */
+
+	for (int i = 0; i < sizeof(name); i = i + 1) {
+		if (name[i] == '.') {
+			// do something 
+		}
+		else {
+			int x = name[i] - '0';
+			char str[5];
+			itoa(x,str,10);
+			append(wire,str[0]);
+			append(wire,str[1]);
+		}
+	}
 }
 
 char *name_ascii_from_wire(unsigned char *wire, int *indexp) {
@@ -187,6 +206,41 @@ unsigned short create_dns_query(char *qname, dns_rr_type qtype, unsigned char *w
 	 *               message should be constructed
 	 * OUTPUT: the length of the DNS wire message
 	 */
+	append(wire, '2');
+	append(wire, '7');
+	append(wire, 'd');
+	append(wire, '6');
+	append(wire, '0');
+	append(wire, '1');
+	append(wire, '0');
+	append(wire, '0');
+	append(wire, '0');
+	append(wire, '0');
+	append(wire, '0');
+	append(wire, '1');
+	append(wire, '0');
+	append(wire, '0');
+	append(wire, '0');
+	append(wire, '0');
+	append(wire, '0');
+	append(wire, '0');
+	append(wire, '0');
+	append(wire, '0');
+	append(wire, '0');
+	append(wire, '0');
+	append(wire, '0');
+	append(wire, '0');
+
+	name_ascii_to_wire(qname, wire);
+	
+	append(wire, '0');
+	append(wire, '0');
+	append(wire, '0');
+	append(wire, '1');
+	append(wire, '0');
+	append(wire, '0');
+	append(wire, '0');
+	append(wire, '1');
 
 	// rr_to_wire()
 }
@@ -256,10 +310,11 @@ dns_answer_entry *resolve(char *qname, char *server) {
 
 	int msg_len = 33;
 	printf("1");
-	// int msg_len = create_dns_query(qname, qtype, wire_msg); // need to figure out how to find qtype (1)
-	// int recv_len = send_recv_message(wire_msg, msg_len, recv_msg, server, 53); // 53 is the default UDP port
+	int msg_len = create_dns_query(qname, qtype, wire_msg); // need to figure out how to find qtype (1)
+	int recv_len = send_recv_message(wire_msg, msg_len, recv_msg, server, 53); // 53 is the default UDP port
 	// dns_answer_entry* entry_list = get_answer_address(qname, qtype, recv_msg, ans_msg);
-	int recv_len = send_recv_message(msg, msg_len, recv_msg, server, 53); // 53 is the default UDP port
+	
+	// int recv_len = send_recv_message(msg, msg_len, recv_msg, server, 53); // 53 is the default UDP port
 	print_bytes(recv_msg, recv_len);
 	return NULL;
 }
