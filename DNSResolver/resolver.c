@@ -259,7 +259,7 @@ dns_answer_entry *resolve(char *qname, char *server) {
 	// dns_answer_entry* entry_list = get_answer_address(qname, qtype, recv_msg, ans_msg);
 	int recv_len = send_recv_message(msg, msg_len, recv_msg, server, 53); // 53 is the default UDP port
 	printf("%d",recv_len);
-	printf("%d",sizeof(recv_msg));
+	printf("%ld",sizeof(recv_msg));
 
 	print_bytes(recv_msg, recv_len);
 	printf("4");
