@@ -219,7 +219,7 @@ unsigned short create_dns_query(char *qname, dns_rr_type qtype, unsigned char *w
 	printf("here1: %ld",sizeof(wire));
 	name_ascii_to_wire(qname, wire);
 	printf("here: %ld",sizeof(wire));
-	return sizeof(wire);
+	return 12;
 	// rr_to_wire()
 }
 
