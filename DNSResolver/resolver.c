@@ -235,6 +235,7 @@ int send_recv_message(unsigned char *request, int requestlen, unsigned char *res
 	int r = recv(skt, response, 1024, 0);
 	printf("2");
 	close(skt);
+	return sizeof(response);
 }
 
 dns_answer_entry *resolve(char *qname, char *server) {
