@@ -242,7 +242,7 @@ dns_answer_entry *resolve(char *qname, char *server) {
 	// q name is www.example.com
 	// server is 8.8.8.8
 	unsigned char* wire_msg = malloc(sizeof(char) * ( 1024 ));
-	char* recv_msg = malloc(sizeof(char) * ( 1024 ));
+	// char* recv_msg = malloc(sizeof(char) * ( 1024 ));
 	unsigned char recv_msg[1024];
 
 	unsigned char* ans_msg = malloc(sizeof(char) * ( 1024 ));
