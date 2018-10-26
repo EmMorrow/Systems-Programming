@@ -222,12 +222,12 @@ int send_recv_message(unsigned char *request, int requestlen, unsigned char *res
 	int skt;
 	struct sockaddr_in addr;
 	skt = socket(AF_INET, SOCK_STREAM,0);
-	memset(&addr, 0, sizeof(SOCKADDR_IN));
+	memset(&addr, 0, sizeof(sockaddr_in));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons((u_short) port);
 	addr.sin_addr.s_addr = inet_addr(server);
 
-	connect(skt, &addr, sizeof(addr));
+	connect(skt, (struct sockaddr *) &addr, sizeof(addr));
 
 	// communicate using send and recv or read and write
 	int send(skt, request, requestlen, 0);
