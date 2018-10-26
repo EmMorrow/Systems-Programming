@@ -233,7 +233,7 @@ int send_recv_message(unsigned char *request, int requestlen, unsigned char *res
 	// communicate using send and recv or read and write
 	int s = send(skt, request, requestlen, 0);
 	int r = recv(skt, response, 1024, 0);
-	print("2");
+	printf("2");
 	close(skt);
 }
 
@@ -252,15 +252,15 @@ dns_answer_entry *resolve(char *qname, char *server) {
 	0x00, 0x01, 0x00, 0x01};
 
 	int msg_len = 33;
-	print("1");
+	printf("1");
 	// int msg_len = create_dns_query(qname, qtype, wire_msg); // need to figure out how to find qtype (1)
 	// int recv_len = send_recv_message(wire_msg, msg_len, recv_msg, server, 53); // 53 is the default UDP port
 	// dns_answer_entry* entry_list = get_answer_address(qname, qtype, recv_msg, ans_msg);
 	int recv_len = send_recv_message(msg, msg_len, recv_msg, server, 53); // 53 is the default UDP port
-	print("3");
+	printf("3");
 
 	print_bytes(recv_msg, recv_len);
-	print("4");
+	printf("4");
 }
 
 int main(int argc, char *argv[]) {
