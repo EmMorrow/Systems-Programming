@@ -209,14 +209,14 @@ unsigned short create_dns_query(char *qname, dns_rr_type qtype, unsigned char *w
 	unsigned char header[] = {0x27, 0xd6, 0x01, 0x00,
  	0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	size_t s = sizeof(header);
-	char* dst = &wire[0];
+	// char* dst = &wire[0];
 	printf("size s: %ld", s);
-	memcpy(dst, header, s);
+	memcpy(wire, header, s);
 
 	unsigned char footer[] = {0x00, 0x01, 0x00, 0x01};
 
 
-	// name_ascii_to_wire(qname, wire);
+	name_ascii_to_wire(qname, wire);
 	printf("here: %ld",sizeof(wire));
 	return sizeof(wire);
 	// rr_to_wire()
@@ -234,6 +234,8 @@ dns_answer_entry *get_answer_address(char *qname, dns_rr_type qtype, unsigned ch
 	 * OUTPUT: a linked list of dns_answer_entrys the value member of each
 	 * reflecting either the name or IP address.  If
 	 */
+
+	// two types of records that can be returned: 1 (ip address) and 5
 
 	// rr_from_wire();
 }
