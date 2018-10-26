@@ -148,6 +148,8 @@ dns_rr rr_from_wire(unsigned char *wire, int *indexp, int query_only) {
 	 *              rdata_len, and rdata are skipped.
 	 * OUTPUT: the resource record (struct)
 	 */
+
+	// name_ascii_from_wire();
 }
 
 
@@ -168,6 +170,8 @@ int rr_to_wire(dns_rr rr, unsigned char *wire, int query_only) {
 	 * OUTPUT: the length of the wire-formatted resource record.
 	 *
 	 */
+
+	// name_ascii_to_wire();
 }
 
 unsigned short create_dns_query(char *qname, dns_rr_type qtype, unsigned char *wire) {
@@ -182,6 +186,8 @@ unsigned short create_dns_query(char *qname, dns_rr_type qtype, unsigned char *w
 	 *               message should be constructed
 	 * OUTPUT: the length of the DNS wire message
 	 */
+
+	// rr_to_wire()
 }
 
 dns_answer_entry *get_answer_address(char *qname, dns_rr_type qtype, unsigned char *wire) {
@@ -196,6 +202,8 @@ dns_answer_entry *get_answer_address(char *qname, dns_rr_type qtype, unsigned ch
 	 * OUTPUT: a linked list of dns_answer_entrys the value member of each
 	 * reflecting either the name or IP address.  If
 	 */
+
+	// rr_from_wire();
 }
 
 int send_recv_message(unsigned char *request, int requestlen, unsigned char *response, char *server, unsigned short port) {
@@ -211,9 +219,47 @@ int send_recv_message(unsigned char *request, int requestlen, unsigned char *res
 	 *             response should be received
 	 * OUTPUT: the size (bytes) of the response received
 	 */
+	int clientfd;
+	struct addrinfo hints, *listp, *p;
+
+	memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE | AI_ADDRCONFIG;
+	hints.ai_flags |= AI_NUMERICSERV;
+	Getaddrinfo(server, port, &hints, &listp); // server should be hostname but idk
+	for (p = listp; p; p = p->ai_next) {
+		if ((clientfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0)
+			continue;
+		if (connect(clientfd, p->ai_addr, p->ai_addrlen) != -1)
+			break;
+		Close(clientfd);
+	}
+
+	Freeaddrinfo(listp);
+	if (!p)
+		return -1;
+	else
+		return clientfd;
 }
 
 dns_answer_entry *resolve(char *qname, char *server) {
+	// q name is www.example.com
+	// server is 8.8.8.8
+	unsigned char* wire_msg = malloc(BUFFER_MAX);
+	unsigned char* recv_msg = malloc(BUFFER_MAX);
+	unsigned char* ans_msg = malloc(BUFFER_MAX);
+	dns_rr_type qtype = 0x01;
+
+	unsigned char msg[] = {0x27, 0xd6, 0x01, 0x00,
+	0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x03, 0x77, 0x77, 0x77, 0x07, 0x65, 0x78, 0x61,
+	0x6d, 0x70, 0x6c, 0x65, 0x03, 0x63, 0x6f, 0x6d, 0x00,
+	0x00, 0x01, 0x00, 0x01};
+
+	// int msg_len = create_dns_query(qname, qtype, wire_msg); // need to figure out how to find qtype (1)
+	// int recv_len = send_recv_message(wire_msg, msg_len, recv_msg, server, 53); // 53 is the default UDP port
+	// dns_answer_entry* entry_list = get_answer_address(qname, qtype, recv_msg, ans_msg);
+	int recv_len = send_recv_message(msg, msg_len, recv_msg, server, 53); // 53 is the default UDP port
 }
 
 int main(int argc, char *argv[]) {
