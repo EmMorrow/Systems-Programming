@@ -5,6 +5,7 @@
 #include<stdlib.h>
 #include<sys/types.h>
 #include<sys/socket.h>
+#include<unistd.h>
 
 typedef unsigned int dns_rr_ttl;
 typedef unsigned short dns_rr_type;
@@ -222,7 +223,7 @@ int send_recv_message(unsigned char *request, int requestlen, unsigned char *res
 	int skt;
 	struct sockaddr_in addr;
 	skt = socket(AF_INET, SOCK_STREAM,0);
-	memset(&addr, 0, sizeof(sockaddr_in));
+	memset(&addr, 0, sizeof(struct sockaddr_in));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons((u_short) port);
 	addr.sin_addr.s_addr = inet_addr(server);
