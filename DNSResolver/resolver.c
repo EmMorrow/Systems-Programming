@@ -219,27 +219,20 @@ int send_recv_message(unsigned char *request, int requestlen, unsigned char *res
 	 *             response should be received
 	 * OUTPUT: the size (bytes) of the response received
 	 */
-	int clientfd;
-	struct addrinfo hints, *listp, *p;
+	int skt;
+	struct sockaddr_in addr;
+	skt = socket(AF_INET, SOCK_STREAM,0);
+	memset(&addr, 0, sizeof(SOCKADDR_IN));
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons((u_short) port);
+	addr.sin_addr.s_addr = inet_addr(server);
 
-	memset(&hints, 0, sizeof(struct addrinfo));
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE | AI_ADDRCONFIG;
-	hints.ai_flags |= AI_NUMERICSERV;
-	Getaddrinfo(server, port, &hints, &listp); // server should be hostname but idk
-	for (p = listp; p; p = p->ai_next) {
-		if ((clientfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0)
-			continue;
-		if (connect(clientfd, p->ai_addr, p->ai_addrlen) != -1)
-			break;
-		Close(clientfd);
-	}
+	connect(skt, &addr, sizeof(addr));
 
-	Freeaddrinfo(listp);
-	if (!p)
-		return -1;
-	else
-		return clientfd;
+	// communicate using send and recv or read and write
+	int send(skt, request, requestlen, 0);
+	int recv(skt, response, BUFFER_MAX, 0);
+	close(skt);
 }
 
 dns_answer_entry *resolve(char *qname, char *server) {
