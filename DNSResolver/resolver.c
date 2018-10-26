@@ -73,7 +73,8 @@ void print_bytes(unsigned char *bytes, int byteslen) {
 }
 
 void append(char* s, char c) {
-        int len = strlen(s);
+        // int len = strlen(s);
+		int len = sizeof(s);
         s[len] = c;
         s[len+1] = '\0';
 }
