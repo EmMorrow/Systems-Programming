@@ -6,6 +6,7 @@
 #include<sys/types.h>
 #include<sys/socket.h>
 #include<unistd.h>
+#include<math.h>
 
 typedef unsigned int dns_rr_ttl;
 typedef unsigned short dns_rr_type;
@@ -26,7 +27,7 @@ typedef struct {
 
 struct dns_answer_entry;
 struct dns_answer_entry {
-	char *value;
+	char* value;
 	struct dns_answer_entry *next;
 };
 typedef struct dns_answer_entry dns_answer_entry;
@@ -113,117 +114,162 @@ void canonicalize_name(char *name) {
 }
 
 int name_ascii_to_wire(char *name, unsigned char *wire) {
-	/*
-	 * Convert a DNS name from string representation (dot-separated labels)
-	 * to DNS wire format, using the provided byte array (wire).  Return
-	 * the number of bytes used by the name in wire format.
-	 *
-	 * INPUT:  name: the string containing the domain name
-	 * INPUT:  wire: a pointer to the array of bytes where the
-	 *              wire-formatted name should be constructed
-	 * OUTPUT: the length of the wire-formatted name.
-	 */
+	 unsigned char domain[1024];
 
-	 for (int i = 0; i < strlen(name); i++) {
+	 size_t name_size = strlen(name);
+
+	 int per_ind = 0;
+	 int count = 0;
+	 for (int i = 0; i < name_size; i++) {
 		 if (name[i] == '.') {
-
+			 domain[per_ind] = count;
+			 count = 0;
+			 per_ind = i + 1;
 		 }
 		 else {
-		 	append(wire, name[i]);
+		 	// append(domain, name[i]);
+			domain[i + 1] = name[i];
+			count = count + 1;
 	 	}
+		if (i == name_size - 1) {
+			domain[per_ind] = count;
+			count = 0;
+			per_ind = i + 2;
+			domain[per_ind] = count;
+		}
 	 }
+	 memcpy(wire + 12, domain, name_size + 2);
+	 return name_size + 2;
 }
 
 char *name_ascii_from_wire(unsigned char *wire, int *indexp) {
-	/*
-	 * Extract the wire-formatted DNS name at the offset specified by
-	 * *indexp in the array of bytes provided (wire) and return its string
-	 * representation (dot-separated labels) in a char array allocated for
-	 * that purpose.  Update the value pointed to by indexp to the next
-	 * value beyond the name.
-	 *
-	 * INPUT:  wire: a pointer to an array of bytes
-	 * INPUT:  indexp, a pointer to the index in the wire where the
-	 *              wire-formatted name begins
-	 * OUTPUT: a string containing the string representation of the name,
-	 *              allocated on the heap.
-	 */
+	 char* name = malloc(1024);
+	 int name_ind = 0;
+	 int i = *indexp;
+	 int offset = wire[i+1];
+	 i = offset; // maybe
+	 while(wire[i] != 0x00) {
+		 int num_chars = wire[i];
+		 i += 1;
+		 for (int j = 0; j < num_chars; j += 1) {
+			 name[name_ind] = wire[i];
+			 i += 1;
+			 name_ind += 1;
+		 }
+		 if (wire[i + 1] != 0x00) {
+			 name[name_ind] = '.';
+		 }
+		 name_ind += 1;
+	 }
+
+
+	 return name;
 }
 
-dns_rr rr_from_wire(unsigned char *wire, int *indexp, int query_only) {
-	/*
-	 * Extract the wire-formatted resource record at the offset specified by
-	 * *indexp in the array of bytes provided (wire) and return a
-	 * dns_rr (struct) populated with its contents. Update the value
-	 * pointed to by indexp to the next value beyond the resource record.
-	 *
-	 * INPUT:  wire: a pointer to an array of bytes
-	 * INPUT:  indexp: a pointer to the index in the wire where the
-	 *              wire-formatted resource record begins
-	 * INPUT:  query_only: a boolean value (1 or 0) which indicates whether
-	 *              we are extracting a full resource record or only a
-	 *              query (i.e., in the question section of the DNS
-	 *              message).  In the case of the latter, the ttl,
-	 *              rdata_len, and rdata are skipped.
-	 * OUTPUT: the resource record (struct)
-	 */
-
-	// name_ascii_from_wire();
+char * toArray(int number) {
+        int n = log10(number) + 1;
+        int i;
+      char *numberArray = calloc(n, sizeof(char));
+        for ( i = 0; i < n; ++i, number /= 10 )
+        {
+            numberArray[i] = number % 10;
+        }
+        return numberArray;
 }
 
+char * translate_ip (unsigned char * wire, int *indexp, int size) {
+	char* ip = malloc(1024);
+	int i = *indexp;
+	int offset = 0;
+	for (int j = 0; j < size; j++) {
+		int k = wire[i];
+		char arr[20];
+		sprintf(arr,"%i",k);
+		if (k > 99) {
+			// size 3
+			if (j != size - 1) {
+				arr[3] = '.';
+				memcpy(ip + offset, arr, 4);
+				offset += 4;
+			}
+			else {
+				memcpy(ip + offset, arr, 3);
+				ip[offset+3] = '\0';
 
-int rr_to_wire(dns_rr rr, unsigned char *wire, int query_only) {
-	/*
-	 * Convert a DNS resource record struct to DNS wire format, using the
-	 * provided byte array (wire).  Return the number of bytes used by the
-	 * name in wire format.
-	 *
-	 * INPUT:  rr: the dns_rr struct containing the rr record
-	 * INPUT:  wire: a pointer to the array of bytes where the
-	 *             wire-formatted resource record should be constructed
-	 * INPUT:  query_only: a boolean value (1 or 0) which indicates whether
-	 *              we are constructing a full resource record or only a
-	 *              query (i.e., in the question section of the DNS
-	 *              message).  In the case of the latter, the ttl,
-	 *              rdata_len, and rdata are skipped.
-	 * OUTPUT: the length of the wire-formatted resource record.
-	 *
-	 */
+			}
+		}
+		else if (k > 9) {
+			// size 2
+			if (j != size - 1) {
+				arr[2] = '.';
+				memcpy(ip + offset, arr, 3);
+				offset += 3;
+			}
+			else {
+				memcpy(ip + offset, arr, 2);
+				ip[offset+2] = '\0';
+			}
 
-	// name_ascii_to_wire();
+		}
+		else if(k >= 0) {
+			//size 1
+			if (j != size - 1) {
+				arr[1] = '.';
+				memcpy(ip + offset, arr, 2);
+				offset += 2;
+			}
+			else {
+				memcpy(ip + offset, arr, 1);
+				ip[offset+1] = '\0';
+
+			}
+		}
+		else {
+			// 0
+		}
+
+		i = i + 1;
+	}
+	return ip;
+}
+
+dns_rr rr_from_wire(unsigned char *wire, int *indexp, int query_only, int recv_len) {
+	dns_rr rr;
+	int ind = *indexp;
+	int answer_ind = ind + 12; // index of the answer name for alias
+	int* anexp = &answer_ind;
+
+	if (query_only == 1) { // you need to get the ip address
+		rr.type = wire[ind + 3];
+		rr.class = wire[ind + 5];
+		rr.name = name_ascii_from_wire(wire, indexp);
+		rr.rdata_len = wire[ind + 11];
+		rr.rdata = translate_ip(wire, anexp, rr.rdata_len);
+	}
+	else { // if it's the alias
+		rr.type = wire[ind + 3];
+		rr.class = wire[ind + 5];
+		rr.name = name_ascii_from_wire(wire, indexp);
+		rr.rdata = name_ascii_from_wire(wire, anexp);
+	}
+	return rr;
 }
 
 unsigned short create_dns_query(char *qname, dns_rr_type qtype, unsigned char *wire) {
-	/*
-	 * Create a wire-formatted DNS (query) message using the provided byte
-	 * array (wire).  Create the header and question sections, including
-	 * the qname and qtype.
-	 *
-	 * INPUT:  qname: the string containing the name to be queried
-	 * INPUT:  qtype: the integer representation of type of the query (type A == 1)
-	 * INPUT:  wire: the pointer to the array of bytes where the DNS wire
-	 *               message should be constructed
-	 * OUTPUT: the length of the DNS wire message
-	 */
-	 //memcopy
-
 	unsigned char header[] = {0x27, 0xd6, 0x01, 0x00,
  	0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	size_t s = sizeof(header);
-	// char* dst = &wire[0];
-	printf("size s: %ld", s);
 	memcpy(wire, header, s);
 
 	unsigned char footer[] = {0x00, 0x01, 0x00, 0x01};
 
-	printf("here1: %ld",sizeof(wire));
-	name_ascii_to_wire(qname, wire);
-	printf("here: %ld",sizeof(wire));
-	return 12;
-	// rr_to_wire()
+	int size = name_ascii_to_wire(qname, wire);
+	int a = size + 12;
+	memcpy(wire + a,footer,4);
+	return 16 + size;
 }
 
-dns_answer_entry *get_answer_address(char *qname, dns_rr_type qtype, unsigned char *wire) {
+dns_answer_entry *get_answer_address(char *qname, dns_rr_type qtype, unsigned char *wire, int recv_len) {
 	/*
 	 * Extract the IPv4 address from the answer section, following any
 	 * aliases that might be found, and return the string representation of
@@ -239,6 +285,71 @@ dns_answer_entry *get_answer_address(char *qname, dns_rr_type qtype, unsigned ch
 	// two types of records that can be returned: 1 (ip address) and 5
 
 	// rr_from_wire();
+	dns_answer_entry* curr;
+	dns_answer_entry* prev;
+	dns_answer_entry* head = NULL;
+	// for each value i in valsToStore:
+		// head = (dns_answer_entry*) malloc(sizeof(dns_answer_entry));
+		// head->value = i;
+		// head = (*head)->next;
+	// head = NULL;
+
+	int a = wire[6];
+	int ans_num = wire[7];
+	int n = 12;
+	int* offset = &n;
+	int j = 0;
+	int count = 0;
+	int prev_was_alias = 0;
+
+	for (int i = 0; i < ans_num; i += 1) {
+		while (count < 1040) {
+			if (wire[j] == 0xC0) {
+				n = j;
+				offset = &n;
+				if (!prev_was_alias) {
+					count = 1040;
+				}
+				else {
+					prev_was_alias = 0;
+				}
+			}
+			j++;
+		}
+		count = 0;
+		if (wire[j + 2] == 5) {
+			dns_rr rr = rr_from_wire(wire, offset, 0, recv_len);
+			if (i == 0) {
+				head = (dns_answer_entry*) malloc(sizeof(dns_answer_entry));
+				head->value = rr.rdata;
+				curr = head;
+			}
+			else {
+				prev = curr;
+				curr = (dns_answer_entry*) malloc(sizeof(dns_answer_entry));
+				curr->value = rr.rdata;
+				prev->next = curr;
+			}
+			prev_was_alias = 1;
+		}
+		else
+		{
+			dns_rr rr = rr_from_wire(wire, offset, 1, recv_len);
+			if (i == 0) {
+				head = (dns_answer_entry*) malloc(sizeof(dns_answer_entry));
+				head->value = rr.rdata;
+				curr = head;
+			}
+			else {
+				prev = curr;
+				curr = (dns_answer_entry*) malloc(sizeof(dns_answer_entry));
+				curr->value = rr.rdata;
+				// curr->value = "hey";
+				prev->next = curr;
+			}
+		}
+	}
+	return head;
 }
 
 int send_recv_message(unsigned char *request, int requestlen, unsigned char *response, char *server, unsigned short port) {
@@ -261,7 +372,6 @@ int send_recv_message(unsigned char *request, int requestlen, unsigned char *res
 	// communicate using send and recv or read and write
 	int s = send(skt, request, requestlen, 0);
 	int r = recv(skt, response, 1024, 0);
-	printf("2");
 	close(skt);
 	return r;
 }
@@ -277,21 +387,15 @@ dns_answer_entry *resolve(char *qname, char *server) {
 	unsigned char* ans_msg = malloc(1024);
 	dns_rr_type qtype = 0x01;
 
-	unsigned char msg[] = {0x27, 0xd6, 0x01, 0x00,
-	0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x03, 0x77, 0x77, 0x77, 0x07, 0x65, 0x78, 0x61,
-	0x6d, 0x70, 0x6c, 0x65, 0x03, 0x63, 0x6f, 0x6d, 0x00,
-	0x00, 0x01, 0x00, 0x01};
 
 	// int msg_len = 33;
-	printf("1");
 	int msg_len = create_dns_query(qname, qtype, wire_msg); // need to figure out how to find qtype (1)
-	// int recv_len = send_recv_message(wire_msg, msg_len, recv_msg, server, 53); // 53 is the default UDP port
-	// dns_answer_entry* entry_list = get_answer_address(qname, qtype, recv_msg, ans_msg);
+	int recv_len = send_recv_message(wire_msg, msg_len, recv_msg, server, 53); // 53 is the default UDP port
+	dns_answer_entry* entry_list = get_answer_address(qname, qtype, recv_msg, recv_len);
 
 	// int recv_len = send_recv_message(msg, msg_len, recv_msg, server, 53); // 53 is the default UDP port
-	print_bytes(wire_msg, msg_len);
-	return NULL;
+	// print_bytes(wire_msg, msg_len);
+	return entry_list;
 }
 
 int main(int argc, char *argv[]) {
