@@ -32,6 +32,16 @@ typedef struct {
     sem_t items;       /* Counts available items */
 } sbuf_t;
 
+typedef struct {
+    char *buf;          /* Buffer array */
+    int n;             /* Maximum number of slots */
+    int front;         /* buf[(front+1)%n] is first item */
+    int rear;          /* buf[rear%n] is last item */
+    sem_t mutex;       /* Protects accesses to buf */
+    sem_t slots;       /* Counts available slots */
+    sem_t items;       /* Counts available items */
+} lbuf_t;
+
 void sbuf_init(sbuf_t *sp, int n);
 void sbuf_deinit(sbuf_t *sp);
 void sbuf_insert(sbuf_t *sp, int item);
@@ -57,6 +67,47 @@ void sigchld_handler(int sig)
     }
     return;
 }
+
+// logging stuff -------------------------------------------------
+void lbuf_init(lbuf_t *sp, int n)
+{
+    sp->buf = Calloc(n, sizeof(int));
+    sp->n = n;                    /* Buffer holds max of n items */
+    sp->front = sp->rear = 0;     /* Empty buffer iff front == rear */
+    Sem_init(&sp->mutex, 0, 1);   /* Binary semaphore for locking */
+    Sem_init(&sp->slots, 0, n);   /* Initially, buf has n empty slots */
+    Sem_init(&sp->items, 0, 0);   /* Initially, buf has 0 items */
+}
+
+void lbuf_deinit(lbuf_t *sp)
+{
+    Free(sp->buf);
+}
+
+void lbuf_insert(lbuf_t *sp, char* item)
+{
+    P(&sp->slots);                         /* Wait for available slot */
+    P(&sp->mutex);                         /* Lock the buffer */
+    sp->rear = sp->rear+1;
+    sp->buf[(sp->rear)%(sp->n)] = item;  /* Insert the item */
+    sp->rear = sp->rear + strlen(item);
+    V(&sp->mutex);                         /* Unlock the buffer */
+    V(&sp->items);                         /* Announce available item */
+}
+
+char* lbuf_remove(lbuf_t *sp)
+{
+    char* item;
+    P(&sp->items);                         /* Wait for available item */
+    P(&sp->mutex);
+    sp->front = sp->front+1;                       /* Lock the buffer */
+    item = sp->buf[(sp->front)%(sp->n)]; /* Remove the item */
+    V(&sp->mutex);                         /* Unlock the buffer */
+    V(&sp->slots);                         /* Announce available slot */
+    return item;
+}
+
+// queue buff stuff -------------------------------------------------
 
 /* Create an empty, bounded, shared FIFO buffer with n slots */
 void sbuf_init(sbuf_t *sp, int n)
@@ -143,6 +194,7 @@ int main(int argc, char **argv)
         clientlen = sizeof(struct sockaddr_storage);
         connfd = Accept(listenfd, (SA *) &clientaddr, &clientlen);
         sbuf_insert(&sbuf, connfd); /* add connection to the shared queue */
+        printf("%i \n",connfd);
     }
     // return 0;
 }
