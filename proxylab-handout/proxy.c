@@ -43,12 +43,143 @@ typedef struct {
     sem_t items;       /* Counts available items */
 } lbuf_t;
 
+typedef struct {
+    struct cache_obj* next;
+    char* url;
+    int msg_size;
+    char* msg;
+} cache_obj;
+
 void sbuf_init(sbuf_t *sp, int n);
 void sbuf_deinit(sbuf_t *sp);
 void sbuf_insert(sbuf_t *sp, int item);
 int sbuf_remove(sbuf_t *sp);
 sbuf_t sbuf;
 lbuf_t lbuf;
+
+sem_t outerQ;
+sem_t rsem;
+sem_t rmutex;
+sem_t wmutex;
+sem_t wsem;
+
+// need to sem init
+int readcnt = 0;
+int writecnt = 0;
+cache_obj* head = NULL;
+
+
+// writer
+void cache_init() {
+    Sem_init(&outerQ, 0, 1);
+    Sem_init(&rsem, 0, 1);
+    Sem_init(&rmutex, 0, 1);
+    Sem_init(&wmutex, 0, 1);
+    Sem_init(&wsem, 0, 1);
+}
+void add_cache_obj(char* url, char* msg, int msg_size) {
+    printf("add cache object\n");
+    P(&wsem);
+    writecnt++;
+    if (writecnt == 1)
+       P(&rsem);
+    V(&wsem);
+    P(&wmutex);
+    printf("adding cache object\n");
+    cache_obj obj;
+    printf("14\n");
+    obj.url = url;
+    printf("12\n");
+    obj.msg = msg;
+    printf("1\n");
+    obj.msg_size = msg_size;
+    printf("2\n");
+    obj.next = head;
+printf("3\n");
+    head = &obj;
+    printf("head addr: %s\n", head->url);
+    printf("added cache object\n");
+
+    V(&wmutex);
+    P(&wsem);
+    writecnt--;
+    if (writecnt == 0)
+       V(&rsem);
+    V(&wsem);
+}
+
+// writer
+void move_cache_obj(char* url) {
+    // move obj to front of ll
+    printf("move cache obj\n");
+    P(&wsem);
+    writecnt++;
+    if (writecnt == 1)
+	   P(&rsem);
+    V(&wsem);
+    P(&wmutex);
+    // WRITE
+    printf("moving cache obj\n");
+    cache_obj* curr = head;
+    while(curr->url != url && curr != NULL) {
+        curr = curr->next;
+    }
+    cache_obj* obj = curr->next;
+    curr->next = NULL;
+    obj->next = head;
+    head = obj;
+    printf("moved cache obj\n");
+
+    V(&wmutex);
+    P(&wsem);
+    writecnt--;
+    if (writecnt == 0)
+	   V(&rsem);
+    V(&wsem);
+}
+
+// reader
+cache_obj* get_cache_obj(char* url) {
+    // return msg if there
+    // return Null if not found
+    printf("get cache obj\n");
+    P(&outerQ);
+    P(&rsem);
+    P(&rmutex);
+    readcnt++;
+    if (readcnt == 1)
+        P(&wsem);
+    V(&rmutex);
+    V(&rsem);
+    V(&outerQ);
+    printf("getting cache obj\n");
+    // do read stuff
+    cache_obj* obj;
+    cache_obj* curr = head;
+    if (head != NULL)
+        printf("head url: %s\n", head->msg);
+    printf("2\n");
+    while(curr != NULL && curr->url != url) {
+        printf("%s\n", curr->url);
+        curr = curr->next;
+    }
+    printf("3\n");
+    if (curr != NULL) {
+        obj = curr;
+    }
+    else {
+        obj = NULL;
+    }
+    printf("got cache obj\n");
+
+    P(&rmutex);
+    readcnt--;
+    if(readcnt == 0)
+        V(&wsem);
+    V(&rmutex);
+    return obj;
+}
+
 
 // struct addrinfo {
 //     int       ai_flags;
@@ -91,7 +222,9 @@ void lbuf_insert(lbuf_t *sp, char* item)
     P(&sp->slots);                         /* Wait for available slot */
     P(&sp->mutex);                         /* Lock the buffer */
     sp->rear = sp->rear+1;
-    sp->buf[(sp->rear)%(sp->n)] = item;  /* Insert the item */
+
+    strcat(sp->buf,item);
+    // sp->buf[(sp->rear)%(sp->n)] = item;  /* Insert the item */
     sp->rear = sp->rear + strlen(item);
     V(&sp->mutex);                         /* Unlock the buffer */
     V(&sp->items);                         /* Announce available item */
@@ -99,13 +232,15 @@ void lbuf_insert(lbuf_t *sp, char* item)
 
 char* lbuf_remove(lbuf_t *sp)
 {
-    char* item;
+    char* item = malloc(500);
     P(&sp->items);                         /* Wait for available item */
     P(&sp->mutex);
     sp->front = sp->front+1;                       /* Lock the buffer */
-    item = sp->buf[(sp->front)%(sp->n)]; /* Remove the item */
+    strcpy(item, sp->buf);
+    memset(sp->buf, 0, strlen(sp->buf));
     V(&sp->mutex);                         /* Unlock the buffer */
     V(&sp->slots);                         /* Announce available slot */
+
     return item;
 }
 
@@ -114,6 +249,7 @@ char* lbuf_remove(lbuf_t *sp)
 /* Create an empty, bounded, shared FIFO buffer with n slots */
 void sbuf_init(sbuf_t *sp, int n)
 {
+
     sp->buf = Calloc(n, sizeof(int));
     sp->n = n;                    /* Buffer holds max of n items */
     sp->front = sp->rear = 0;     /* Empty buffer iff front == rear */
@@ -167,15 +303,15 @@ void *thread(void *vargp)
     // return NULL;
 }
 
-void* loggingThred(void *args)
+void* loggingThread(void *args)
 {
     FILE * fp;
-
-    fp = fopen ("file.txt", "w+");
     Pthread_detach(pthread_self());
     while(1) {
         char* msg = lbuf_remove(&lbuf);
+        fp = fopen ("file.txt", "ab");
         fprintf(fp, "%s", msg);
+        fclose(fp);
     }
 }
 
@@ -203,10 +339,12 @@ int main(int argc, char **argv)
     listenfd = Open_listenfd(argv[1]);
     sbuf_init(&sbuf, SBUFSIZE);
     lbuf_init(&lbuf, MSGSIZE);
+    cache_init();
     for (i = 0; i < NTHREADS; i++) { /* Create worker threads */
         Pthread_create(&tid, NULL, thread, NULL);
     }
     Pthread_create(&lid, NULL, loggingThread, NULL);
+
     while (1) {
         clientlen = sizeof(struct sockaddr_storage);
         connfd = Accept(listenfd, (SA *) &clientaddr, &clientlen);
@@ -226,18 +364,26 @@ int isHTTP(char* uri)
     p = strstr(uri, "http://");
     if(p)
     {
-        free(p);
         return 1;
     }
     else
     {
-        free(p);
         return 0;
     }
 }
 
 void parseURI(char* uri, char* method, char* version, int clientfd, char* extraHeaders)
 {
+    cache_obj* obj = get_cache_obj(uri);
+    if (obj != NULL) {
+        int total = obj->msg_size;
+        int len = 0;
+        while(len < total) {
+            len += send(clientfd, obj->msg, total,0);
+        }
+        move_cache_obj(uri);
+    }
+    lbuf_insert(&lbuf, "Made it to parse URI\n");
     char* hostname = malloc(1024);
     char* path = malloc(1024);
     char* port = malloc(1024);
@@ -293,7 +439,7 @@ void parseURI(char* uri, char* method, char* version, int clientfd, char* extraH
 
     // put together the request
     char* str = malloc(1024);
-
+    lbuf_insert(&lbuf, "MADE IT HERE\n");
     strcat(method, " ");
     strcat(method, path);
     strcat(method, " ");
@@ -317,16 +463,14 @@ void parseURI(char* uri, char* method, char* version, int clientfd, char* extraH
         total += count;
     }
 
+    add_cache_obj(uri, buffer, total);
+
     int len = 0;
     while(len < total) {
         len += send(clientfd, buffer, total,0);
     }
 
-    free(str);
-    free(buffer);
-    free(hostname);
-    free(path);
-    free(port);
+
 }
 
 /*
@@ -363,61 +507,8 @@ void doit(int fd) // maybe add void pointers
 
     if (isHTTP(uri))
     {
-        printf("ITS HTTP\n");
         parseURI(uri, method, version, fd, moreHeaders);
     }
-    else
-    {
-        // is_static = parse_uri(uri, filename, cgiargs);
-        // char* s1 = "./tiny";
-        //
-        // char nfilename[1000];
-        // memset(nfilename, 0, 1000);
-        //
-        // for (int i = 0; i < strlen(s1); i += 1) {
-        //     nfilename[i] = s1[i];
-        // }
-        // int size = strlen(nfilename);
-        // for (int i = 0; i < strlen(filename) - 1; i += 1) {
-        //
-        //         nfilename[i + size] = filename[i+1];
-        //
-        // }
-        //
-        // // strcpy(nfilename,s1);
-        // printf("Filename: %s\n", nfilename);
-        // // strncpy(nfilename, filename+1, strlen(filename));
-    	// if (stat(nfilename, &sbuf) < 0)
-    	// {
-        //     //line: netp: doit:beginnotfound
-    	// 	clienterror(fd, nfilename, "404", "Not found","Tiny couldn't find this file");
-    	// 	return;
-        // } //line: netp: doit:endnotfound
-        //
-    	// if (is_static)
-    	// {			/* Serve static content */
-    	// 	if (!(S_ISREG(sbuf.st_mode)) || !(S_IRUSR & sbuf.st_mode))
-    	// 	{
-    	//         //line: netp: doit:readable
-    	// 		clienterror(fd, nfilename, "403", "Forbidden","Tiny couldn't read the file");
-    	// 		return;
-    	// 	}
-    	// 	serve_static(fd, nfilename, sbuf.st_size);
-        //     //line: netp: doit:servestatic
-    	// }
-        // else
-    	// {			/* Serve dynamic content */
-    	// 	if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode))
-    	// 	{
-    	//         //line: netp: doit:executable
-    	// 		clienterror(fd, nfilename, "403", "Forbidden","Tiny couldn't run the CGI program");
-    	// 		return;
-    	// 	}
-    	// 	serve_dynamic(fd, nfilename, cgiargs);
-        //     //line: netp: doit:servedynamic
-    	// }
-    }
-    free(moreHeaders);
 
 }
 /* $end doit */
