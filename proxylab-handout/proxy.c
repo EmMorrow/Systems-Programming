@@ -10,6 +10,7 @@
 #define __MAC_OS_X
 #define SBUFSIZE 1049000
 #define NTHREADS 4
+#define MSGSIZE 500
 
 /* You won't lose style points for including this long line in your code */
 static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 Firefox/10.0.3\r\n";
@@ -47,6 +48,7 @@ void sbuf_deinit(sbuf_t *sp);
 void sbuf_insert(sbuf_t *sp, int item);
 int sbuf_remove(sbuf_t *sp);
 sbuf_t sbuf;
+lbuf_t lbuf;
 
 // struct addrinfo {
 //     int       ai_flags;
@@ -165,6 +167,18 @@ void *thread(void *vargp)
     // return NULL;
 }
 
+void* loggingThred(void *args)
+{
+    FILE * fp;
+
+    fp = fopen ("file.txt", "w+");
+    Pthread_detach(pthread_self());
+    while(1) {
+        char* msg = lbuf_remove(&lbuf);
+        fprintf(fp, "%s", msg);
+    }
+}
+
 int main(int argc, char **argv)
 {
     // int listenfd, *connfdp;
@@ -184,17 +198,19 @@ int main(int argc, char **argv)
     socklen_t clientlen;
     struct sockaddr_storage clientaddr;
     pthread_t tid;
+    pthread_t lid;
 
     listenfd = Open_listenfd(argv[1]);
     sbuf_init(&sbuf, SBUFSIZE);
+    lbuf_init(&lbuf, MSGSIZE);
     for (i = 0; i < NTHREADS; i++) { /* Create worker threads */
         Pthread_create(&tid, NULL, thread, NULL);
     }
+    Pthread_create(&lid, NULL, loggingThread, NULL);
     while (1) {
         clientlen = sizeof(struct sockaddr_storage);
         connfd = Accept(listenfd, (SA *) &clientaddr, &clientlen);
         sbuf_insert(&sbuf, connfd); /* add connection to the shared queue */
-        printf("%i \n",connfd);
     }
     // return 0;
 }
